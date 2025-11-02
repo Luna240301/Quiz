@@ -73,23 +73,17 @@
     let currentAnswers = {};
     let version = 1;
 
-    // 📁 JSON-Dateien automatisch auflisten (per fetch directory)
-    async function loadQuizList() {
-      try {
-        const response = await fetch('/json/fragen/');
-        const text = await response.text();
-        const files = Array.from(text.matchAll(/href="([^"]+\.json)"/g)).map(m => m[1]);
-        quizSelect.innerHTML = '<option value="">-- Wähle ein Quiz --</option>';
-        files.forEach(file => {
-          const opt = document.createElement('option');
-          opt.value = file;
-          opt.textContent = file.replace('.json', '');
-          quizSelect.appendChild(opt);
-        });
-      } catch (err) {
-        console.error('Fehler beim Laden der JSON-Dateien:', err);
-      }
-    }
+    // 📁 JSON-Quiz-Dateien auflisten
+    function loadQuizList() {
+  const files = ['quiz1.json', 'quiz2.json']; // <--- Quiz Dateien
+  quizSelect.innerHTML = '<option value="">-- Wähle ein Quiz --</option>';
+  files.forEach(file => {
+    const opt = document.createElement('option');
+    opt.value = file;
+    opt.textContent = file.replace('.json', '');
+    quizSelect.appendChild(opt);
+  });
+}
 
     // 🧩 Fragen aus JSON laden
     async function loadQuiz(filename) {
