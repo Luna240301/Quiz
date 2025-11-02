@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quiz Webseite</title>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      background: #f8f8ff;
+      color: #333;
+      padding: 20px;
+      max-width: 900px;
+      margin: auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    select, button {
+      font-size: 16px;
+      padding: 8px 10px;
+      margin: 5px 0;
+    }
+    #quizContainer {
+      margin-top: 20px;
+    }
+    .question {
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 12px;
+    }
+    .question strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 60px;
+      font-size: 15px;
+      padding: 6px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      resize: vertical;
+    }
+    #saveAnswersBtn, #download-btn {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-right: 10px;
+    }
+    #saveAnswersBtn {
+      background: #4a90e2;
+      color: white;
+    }
+    #download-btn {
+      background: #4caf50;
+      color: white;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🧠 Quiz Webseite</h1>
+
+  <label for="quizSelect">Quiz auswählen:</label>
+  <select id="quizSelect"></select>
+
+  <div id="quizContainer"></div>
+
+  <div style="margin-top:20px;">
+    <button id="saveAnswersBtn">Antworten speichern</button>
+    <button id="download-btn">Antworten herunterladen</button>
+  </div>
+
+  <script>
+    const quizSelect = document.getElementById('quizSelect');
+    const quizContainer = document.getElementById('quizContainer');
+    const saveBtn = document.getElementById('saveAnswersBtn');
+    const downloadBtn = document.getElementById('download-btn');
+
+    let currentQuiz = null;
+    let currentQuestions = [];
+    let currentAnswers = {};
+    let version = 1;
+
+    // Lade vorhandene Quiznamen aus list.json
+    async function loadQuizList() {
+      try {
+        const res = await fetch('/json/fragen/list.json');
+        const list = await res.json();
+
+        quizSelect.innerHTML = '<option value="">-- Wähle ein Quiz --</option>';
+        list.forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name.replace('.json', '');
+          quizSelect.appendChild(opt);
+        });
+      } catch (err) {
+        console.error('Quizliste konnte nicht geladen werden:', err);
+      }
+    }
+
+    // Lade ein Quiz
+    async function loadQuiz(filename) {
+      if (!filename) return;
+      try {
+        const res = await fetch(`/json/fragen/${filename}`);
+        currentQuestions = await res.json();
+        currentQuiz = filename.replace('.json', '');
+        loadOldAnswers();
+        renderQuiz();
+      } catch (err) {
+        console.error('Fehler beim Laden des Quiz:', err);
+      }
+    }
+
+    // GUI erzeugen
+    function renderQuiz() {
+      quizContainer.innerHTML = '';
+      currentQuestions.forEach((q, i) => {
+        const div = document.createElement('div');
+        div.className = 'question';
+        div.innerHTML = `
+          <strong>${i + 1}. ${q.frage}</strong>
+          <textarea data-id="${i}" placeholder="Deine Antwort...">${currentAnswers[i] || ''}</textarea>
+        `;
+        quizContainer.appendChild(div);
+      });
+    }
+
+    // Antworten speichern
+    function saveAnswers() {
+      const inputs = quizContainer.querySelectorAll('textarea');
+      inputs.forEach(el => {
+        currentAnswers[el.dataset.id] = el.value;
+      });
+
+      // Version automatisch erhöhen
+      version = Object.keys(localStorage).filter(k => k.startsWith(currentQuiz + '_v')).length + 1;
+      const filename = `${currentQuiz}_v${version}.json`;
+
+      localStorage.setItem(filename, JSON.stringify(currentAnswers, null, 2));
+      alert('Antworten gespeichert als ' + filename);
+      downloadBtn.style.display = 'inline-block';
+    }
+
+    // Alte Antworten laden
+    function loadOldAnswers() {
+      const stored = Object.keys(localStorage)
+        .filter(k => k.startsWith(currentQuiz + '_v'))
+        .sort()
+        .pop();
+
+      if (stored) {
+        currentAnswers = JSON.parse(localStorage.getItem(stored));
+        version = parseInt(stored.match(/_v(\\d+)/)?.[1] || 1);
+        downloadBtn.style.display = 'inline-block';
+      } else {
+        currentAnswers = {};
+        version = 1;
+        downloadBtn.style.display = 'none';
+      }
+    }
+
+    // JSON herunterladen
+    function downloadAnswers() {
+      const blob = new Blob(
+        [JSON.stringify(currentAnswers, null, 2)],
+        { type: 'application/json' }
+      );
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentQuiz}_v${version}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    quizSelect.addEventListener('change', e => loadQuiz(e.target.value));
+    saveBtn.addEventListener('click', saveAnswers);
+    downloadBtn.addEventListener('click', downloadAnswers);
+
+    loadQuizList();
+  </script>
+
+</body>
+  </html>
